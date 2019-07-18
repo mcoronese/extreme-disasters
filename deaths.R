@@ -531,7 +531,7 @@ int_deaths_data%>% filter(tau>=min_tau) %>%  ggplot() +
 mainplot_box2 + annotation_custom(ggplotGrob(subplot_box2), xmin = 1982, xmax=2014, ymin=700, ymax=2210) -> plot_deaths2
 plot_deaths2
 
-grid.arrange(plot_deaths2, quantile_reg_graph_int2, nrow=1) #save as 7.2X17.53 
+deaths_graph <- grid.arrange(plot_deaths2, quantile_reg_graph_int2, nrow=1) #save as 7.2X17.53 
 
 #Quantile by group 
 disasters_year_dis_quant %>% mutate(
@@ -548,25 +548,30 @@ disasters_year_dis_quant %>% mutate(
     filter(value>0) %>% 
     ggplot(aes(x=year, y=value)) +
     facet_wrap( ~ dis_type, scales="free_y", nrow = 2) +
-    geom_point(aes(color=income_group), alpha=.5, size=.7) +
-    geom_smooth(method = lm, aes(color=income_group), linetype="dashed", size=.8, se=F) +
+    geom_point(aes(color=income_group, fill=income_group), alpha=.5, size=.7) +
+    geom_smooth(method = lm, aes(color=income_group), linetype="dashed", size=.8, se=F, show.legend = F) +
+    guides(fill = guide_legend(override.aes = list(size = 5))) +
+    ylab("Deaths per Million Inhabitants (Yearly 99th Quantile)") +
+    xlab("Year") +
+    scale_color_manual(values=pal_income) +
+    scale_x_continuous(breaks=c(seq(1960,2010,20),2014)) + 
+    scale_y_log10(labels=trans_format('log10',math_format(10^.x, format=force))) +
     theme_bw() +
     theme(
         panel.grid = element_blank(),
         strip.background = element_blank(),
-        strip.text = element_text(size=9, face = "bold",  margin = margin(3, 0, 6, 0) ),
+        strip.text = element_text(size=8, face = "bold",  margin = margin(3, 0, 6, 0) ),
         legend.title = element_blank(),
-        legend.text = element_text(size = 12),
+        axis.text = element_text(size=7),
+        #legend.text = element_text(size = 12),
+        text = element_text(size = 12),
+        axis.title = element_text(size = 10),
         legend.position = "bottom"
-    ) +
-    guides(colour = guide_legend(override.aes = list(size = 5, shape = "3"))) +
-    ylab("Deaths per Million Inhabitants (Yearly 99th Quantile)") +
-    xlab("Year") +
-    scale_color_manual(values=pal_income) +
-    scale_x_continuous(breaks=c(seq(1960,2010,20),2015)) + 
-    scale_y_log10(labels=trans_format('log10',math_format(10^.x, format=force)))-> deaths_groups_99
+    ) -> deaths_groups_99
 
 
-
+ggsave("/Users/matteo/Desktop/devil_graphs/deaths_graph.pdf", deaths_graph, width=17.53, height=7.2, dpi=500, units="in")
+#ggsave("/Users/matteo/Desktop/damages_graph.pdf", damages_graph, width=17.8, height=7.3, dpi=500, units="cm", scale = 2.6)
+ggsave("/Users/matteo/Desktop/devil_graphs/deaths_groups_99.pdf", deaths_groups_99, width=5.83, height=4.13, dpi=500, units="in")
 
 

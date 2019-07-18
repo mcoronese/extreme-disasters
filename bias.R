@@ -1,6 +1,8 @@
-#CScript for charts related to human losses
+# Bias Robustness Check
 
-#### Pacchetti ####
+#### Packages ####
+library("quantreg")
+require("tidyverse")
 require("tidyverse")  # Ecosistema di manipolazione dati
 library("lubridate")  # Manipolazione date/ore
 library("stringr")    # Manipolazione stringhe
@@ -12,60 +14,11 @@ library("moments")    # For skewness and kurtosis
 library("pwt9")       # Penn World Tables
 library("quantreg")   # Regressione quantilica
 library("readr")
-library("wesanderson") #palettes
+library("wesanderson")# Palettes
 library("ggmap")      # Spatial data management
-library("grid")
-library(gridExtra)
+library("grid")       # Inset graphs 
+library("gridExtra")
 
-
-#load data
-load("simul/deaths_int.RData")
-load("simul/final_rescaled_complete.RData")
-#load re-bootstrapped results analysis by climatic zones
-load("simul/plot_distype_boot_1k.Rda")
-load( "simul/plot_income_boot_1k.Rda")
-load( "simul/plot_koppen_boot_1k.Rda")
-
-theme_set(theme_minimal())
-
-#### Palette ####
-
-pal_income          <- c("High"   = "#ca0020",
-                         "Upper Middle" = "#f4a582",
-                         "Lower Middle" = "#92c5de",
-                         "Low"       = "#0571b0")
-
-pal_distype         <- c("Drought"   = "#a6611a",
-                         "Extreme Temperature" = "#dfc27d",
-                         "Flood" = "#80cdc1",
-                         "Storm"       = "#018571")
-
-pal_koppen          <- c("Temperate"  ="#7CAE00", 
-                         "Cold"       ="#00BFC4", 
-                         "Arid"       ="#F8766D", 
-                         "Tropical"="#C77CFF") 
-
-diverging_palette   <- c("2010"="#b2182b",
-                         "2000"="#ef8a62",
-                         "1990"="#fddbc7",
-                         "1980"="#d1e5f0",
-                         "1970"="#67a9cf",
-                         "1960"="#2166ac")
-
-deaths_palette      <- c("1960"="#8c510a",
-                         "1970"="#d8b365",
-                         "1980"="#f6e8c3",
-                         "1990"="#c7eae5",
-                         "2000"="#5ab4ac",
-                         "2010"="#01665e")
-
-#alphas 
-alpha_density       <- c("2010"="0.05",
-                         "2000"="0.13",
-                         "1990"="0.23",
-                         "1980"="0.4",
-                         "1970"="0.7",
-                         "1960"="1")
 
 #### Preliminaries ####
 theme_set(theme_minimal()) # set graphs theme
@@ -280,293 +233,379 @@ disasters <- disasters %>%
         ISO = replace(ISO, ISO == "ERI", "ETH") #Eritrea
     )
 
-#### Function ####
 
-#Human numbers: usa suffixes instead of huge numbers
-human_numbers <- function(x = NULL, smbl ="", signif = 1){
-    humanity <- function(y){
-        
-        if (!is.na(y)){
-            tn <- round(abs(y) / 1e12, signif)
-            b <- round(abs(y) / 1e9, signif)
-            m <- round(abs(y) / 1e6, signif)
-            k <- round(abs(y) / 1e3, signif)
-            
-            if ( y >= 0 ){
-                y_is_positive <- ""
-            } else {
-                y_is_positive <- "-"
-            }
-            
-            if ( k < 1 ) {
-                paste0( y_is_positive, smbl, round(abs(y), signif ))
-            } else if ( m < 1){
-                paste0 (y_is_positive, smbl,  k , "k")
-            } else if (b < 1){
-                paste0 (y_is_positive, smbl, m ,"m")
-            }else if(tn < 1){
-                paste0 (y_is_positive, smbl, b ,"bn")
-            } else {
-                paste0 (y_is_positive, smbl,  comma(tn), "tn")
-            }
-        } else if (is.na(y) | is.null(y)){
-            "-"
-        }
+#### SETUP ####
+
+yearly_draws <- 318
+years <- 55
+mc <- 500
+
+tau_vec <- c(0.50, 0.70, 0.71, 0.72, 0.73, 0.74, 0.75, 0.76, 0.77, 0.78, 0.79, 0.80, 0.81, 0.82, 0.83, 0.84, 0.85, 0.86, 0.87, 0.88, 0.89, 0.90, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99)
+
+#### BASELINE ####
+# No shift in distribution
+
+disasters %>% filter(year>=2000) %>%  select(tot_damages) -> empirical_dist 
+empirical_dist$tot_damages <- empirical_dist$tot_damages/1000 #Million of Dollars
+
+disasters %>% filter(year>=2000) %>% group_by(year) %>% 
+    summarise(
+        number=n()
+    ) %>% summarise(
+        mean=mean(number)
+    ) #318 observations on average
+
+p<-1
+for(p in 1:mc){
+    set.seed(p)
+    print(p)
+    damage <- data.frame(obs=sample(empirical_dist$tot_damages,yearly_draws), year=0)
+    i<-2
+    for (i in 2:years) {
+        aux <- data.frame(obs=sample(empirical_dist$tot_damages,yearly_draws), year=i-1)
+        damage <- rbind(damage, aux)
     }
     
-    sapply(x,humanity)
-}
-
-#To label facetd
-graph_labeller <- function(variable,value){
-    return(label_names[value])
-}
-
-#In case of two-dimensional facetting
-plot_labeller <- function(variable,value){
-    if (variable=='measure') {
-        return(facet1_names[value])
-    } else {
-        return(facet2_names[value])
+    rq(data = damage, formula = obs ~ year, 
+       tau = tau_vec) -> rq_obj
+    if(p==1){
+        coeff_matrix_base <- rq_obj$coefficients["year",]
+    } else{
+        row <- rq_obj$coefficients["year",]
+        coeff_matrix_base <- rbind(coeff_matrix_base, row)
     }
+    
 }
 
-#### Data manipulation Descriptive ####
 
 
-#Generate data for densities
-odisasters_decade_deaths <- odisasters %>%
-    filter(decade >= 1960) %>%
-    select(decade, tot_deaths) %>% 
-    gather("measure", "value", -decade)
+#### TRUNCATED ####
 
-odisasters_decade_deaths$decade <- factor(odisasters_decade_deaths$decade, 
-                                          levels = c("1960","1970","1980","1990","2000","2010"))
+p <- 1
+for (p in 1:mc) {
+    set.seed(p)
+    damage <- data.frame(obs=sample(empirical_dist$tot_damages,yearly_draws), year=0)
+    i=2
+    for (i in 2:years) {
+        aux <- data.frame(obs=sample(empirical_dist$tot_damages,yearly_draws), year=i-1)
+        damage <- rbind(damage, aux)
+    }
+    
+    cut <- quantile(damage[damage$year==0,]$obs, 0.5)
+    if(cut==0){
+        which_cut <- 0.5*length(damage[damage$year==0,]$obs)
+        damage %>% filter(year==0) -> interm
+        sorted <- interm[order(interm$obs),]
+        partial <- sorted[which_cut:nrow(sorted),]
+    }else{
+        partial <- damage %>% filter(year==0 & obs > cut)
+    }
+    censored <- partial
+    
+    i=2
+    for (i in 2:21) { #like 1960 to 1980, 20 years
+        cut <- quantile(damage[damage$year==(i-1),]$obs, (0.5 - (0.02*(i-1) ) ) )
+        if(cut==0){
+            which_cut <- (0.5 - (0.02*(i-1) ) )*length(damage[damage$year==(i-1),]$obs)
+            damage %>% filter(year==(i-1)) -> interm
+            sorted <- interm[order(interm$obs),]
+            partial <- sorted[which_cut:nrow(sorted),]
+        }else{
+            partial <- damage %>% filter(year==(i-1) & obs > cut)
+        }
+        censored <- rbind(censored, partial)
+    }
+    
+    i=22
+    for (i in 22:31) { #like 1981 to 1990, 10 years
+        cut <- quantile(damage[damage$year==(i-1),]$obs, (0.1 - (0.005*(i-21) ) ) )
+        if(cut==0){
+            which_cut <- (0.1 - (0.005*(i-21) ) )*length(damage[damage$year==(i-1),]$obs)
+            damage %>% filter(year==(i-1)) -> interm
+            sorted <- interm[order(interm$obs),]
+            partial <- sorted[which_cut:nrow(sorted),]
+        }else{
+            partial <- damage %>% filter(year==(i-1) & obs > cut)
+        }
+        censored <- rbind(censored, partial)
+    }
+    
+    i=32
+    for (i in 32:years) { #like 1981 to 2014
+        cut <- quantile(damage[damage$year==(i-1),]$obs, 0.05 )
+        if(cut==0){
+            which_cut <- 0.05*length(damage[damage$year==(i-1),]$obs)
+            #sorted <- sort(damage, decreasing = FALSE)
+            damage %>% filter(year==(i-1)) -> interm
+            sorted <- interm[order(interm$obs),]
+            partial <- sorted[which_cut:nrow(sorted),]
+        }else{
+            partial <- damage %>% filter(year==(i-1) & obs > cut)
+        }
+        censored <- rbind(censored, partial)
+    }
+    
+    
+    rq(data = censored, formula = obs ~ year, 
+       tau = tau_vec) -> rq_trunc_obj
+    
+    if(p==1){
+        coeff_matrix_trunc <- rq_trunc_obj$coefficients["year",]
+    } else{
+        row <- rq_trunc_obj$coefficients["year",]
+        coeff_matrix_trunc <- rbind(coeff_matrix_trunc, row)
+    }
+    
+}
 
-#For Boxplot
-odisasters_year_deaths <- odisasters %>% 
-    filter(year >= 1960) %>% 
-    select(year, tot_deaths) %>% 
-    gather("measure", "value", -year)  
+#### TRUNC LOGISTIC ####
 
-disasters_boxplot_deaths <- odisasters_year_deaths %>% 
-    filter(value>0) %>% 
-    group_by(year) %>%
-    summarise(
-        q0  = min(value),
-        q25 = quantile(value, probs= 0.25, na.rm = TRUE),
-        q50 = quantile(value, probs= 0.50, na.rm = TRUE),
-        q75 = quantile(value, probs= 0.75, na.rm = TRUE),
-        q90 = quantile(value, probs= 0.90, na.rm = TRUE),
-        q99 = quantile(value, probs= 0.99, na.rm = TRUE),
-        q100 = max(value)
-    ) %>% mutate(
-        decade = case_when(
-            year>=1960 & year<1970 ~ 1960,
-            year>=1970 & year<1980 ~ 1970,
-            year>=1980 & year<1990 ~ 1980,
-            year>=1990 & year<2000 ~ 1990,
-            year>=2000 & year<2010 ~ 2000,
-            year>=2010 ~ 2010
-        )
-    )
+plogis(0,0,13) #year 0 is 1960
+plogis(30,0,13) # with mean 0 and sd 13, we have 50% in 1960, 66% in 1970, 79% in 1980, 90% in 1990, 96% nowadays
 
-disasters_boxplot_deaths$decade <- factor(disasters_boxplot_deaths$decade, 
-                                          levels = c("2010","2000","1990","1980","1970","1960"))
+#set parameters of logistic
+mean_log <- 0
+sd_log <- 13
 
-#### Data Manipulation Quantiles ####
+p <- 1
+for (p in 1:mc) {
+    set.seed(p)
+    damage <- data.frame(obs=sample(empirical_dist$tot_damages,yearly_draws), year=0)
+    i=2
+    for (i in 2:years) {
+        aux <- data.frame(obs=sample(empirical_dist$tot_damages,yearly_draws), year=i-1)
+        damage <- rbind(damage, aux)
+    }
+    
+    cut <- quantile(damage[damage$year==0,]$obs, plogis(0,mean_log,sd_log))
+    if(cut==0){
+        which_cut <- plogis(0,mean_log,sd_log)*length(damage[damage$year==0,]$obs)
+        damage %>% filter(year==0) -> interm
+        sorted <- interm[order(interm$obs),]
+        partial <- sorted[(which_cut+1):nrow(sorted),]
+    }else{
+        partial <- damage %>% filter(year==0 & obs > cut)
+    }
+    log_censored <- partial
+    
+    j=2
+    for (j in 2:years) {
+        cut <- quantile(damage[damage$year==(j-1),]$obs, 1 - plogis((j-1),mean_log,sd_log)  )
+        if(cut==0){
+            which_cut <- (1 - plogis((j-1),mean_log,sd_log))*length(damage[damage$year==(j-1),]$obs)
+            damage %>% filter(year==(j-1)) -> interm
+            sorted <- interm[order(interm$obs),]
+            partial <- sorted[which_cut:nrow(sorted),]
+        }else{
+            partial <- damage %>% filter(year==(j-1) & obs > cut)
+        }
+        log_censored <- rbind(log_censored, partial)
+    }
+    
+    
+    rq(data = log_censored, formula = obs ~ year, 
+       tau = tau_vec) -> rq_log_cens_obj
+    
+    if(p==1){
+        coeff_matrix_log_censored <- rq_log_cens_obj$coefficients["year",]
+    } else{
+        row <- rq_log_cens_obj$coefficients["year",]
+        coeff_matrix_log_censored <- rbind(coeff_matrix_log_censored, row)
+    }
+    
+}
 
-#Quantile reg graph
-plot_s1_60_deaths["index",,1:31] %>% t() %>% as.data.frame() -> base_deaths_data
-variable                    <- rep("trend", length(tau_vec))
-tau                         <- tau_vec
-model                       <- rep("baseline_deaths", length(tau))
-base_deaths_data            <- cbind(base_deaths_data, tau, variable, model)
 
-base_deaths_data$model      <- factor(base_deaths_data$model,
-                                      levels = "baseline_deaths",
-                                      labels = "Global Deaths")
+#### MATRIX PLOTTING ####
+#construct matrixes for final plotting
 
-base_deaths_data$variable   <- factor(base_deaths_data$variable,
-                                      levels = "trend",
-                                      labels = "Quantile Regression")
+load("~/Google Drive/Disasters/empirical_simulation.RData")
 
-lin_deaths                  <- rep(s1_60_deaths_lin$coefficients["index"], nrow(base_deaths_data))
-lin_lb_deaths               <- rep(as.numeric(confint(s1_60_deaths_lin, level = 0.95)["index",1]), nrow(base_deaths_data))
-lin_ub_deaths               <- rep(as.numeric(confint(s1_60_deaths_lin, level = 0.95)["index",2]), nrow(base_deaths_data))
+#base
+# evaluate mean and mc se of estimate coefficients
 
-lin_deaths_data             <- cbind(base_deaths_data, lin_deaths, lin_lb_deaths, lin_ub_deaths)
+mean_beta <- array(NA, length(tau_vec))
+se_beta   <- array(NA, length(tau_vec))
 
-lin_deaths_data$variable    <- factor(lin_deaths_data$variable,
-                                      levels = "Quantile Regression",
-                                      labels = "OLS")
+j <- 1
+for (j in 1:length(tau_vec)) {
+    mean_beta[j] <- mean(coeff_matrix_base[,j])
+    se_beta[j] <- sqrt(sum((coeff_matrix_base[,j] - mean(coeff_matrix_base[,j]))^2)/(mc-1))
+}
 
-#Quantile reg with interaction graph
-tau_vec         <- seq(0.5,0.99, by=0.01)
-plot_int_60_deaths["index",,1:50] %>% t() %>% as.data.frame() -> int_deaths_data
-variable        <- rep("trend", length(tau_vec))
-tau             <- tau_vec
-model           <- rep("int_deaths", length(tau))
-int_deaths_data <- cbind(int_deaths_data, tau, variable, model)
+plot_base <- matrix(NA, nrow = length(tau_vec), ncol= 5 )
 
-int_deaths_data$model       <- factor(int_deaths_data$model,
-                                      levels = "int_deaths",
-                                      labels = "Global Deaths")
+plot_base[,1] <- mean_beta
+plot_base[,2] <- se_beta
+plot_base[,3] <- plot_base[,1] - plot_base[,2]*1.96 
+plot_base[,4] <- plot_base[,1] + plot_base[,2]*1.96
+plot_base[,5] <- tau_vec
 
-int_deaths_data$variable    <- factor(int_deaths_data$variable,
-                                      levels = "trend",
-                                      labels = "Quantile Regression")
 
-lin_int_deaths                  <- rep(int_60_deaths_lin$coefficients["index"], nrow(int_deaths_data))
-lin_int_lb_deaths               <- rep(as.numeric(confint(int_60_deaths_lin, level = 0.95)["index",1]), nrow(int_deaths_data))
-lin_int_ub_deaths               <- rep(as.numeric(confint(int_60_deaths_lin, level = 0.95)["index",2]), nrow(int_deaths_data))
+plot_base <- as.data.frame(plot_base)
 
-lin_int_deaths_data             <- cbind(int_deaths_data, lin_int_deaths, lin_int_lb_deaths, lin_int_ub_deaths)
+#trunc
+# evaluate mean and mc se of estimate coefficients
 
-lin_int_deaths_data$variable    <- factor(lin_int_deaths_data$variable,
-                                          levels = "Quantile Regression",
-                                          labels = "OLS")
+mean_beta <- array(NA, length(tau_vec))
+se_beta   <- array(NA, length(tau_vec))
 
-#### Data Manipulation Groups ####
+j <- 1
+for (j in 1:length(tau_vec)) {
+    mean_beta[j] <- mean(coeff_matrix_trunc[,j])
+    se_beta[j] <- sqrt(sum((coeff_matrix_trunc[,j] - mean(coeff_matrix_trunc[,j]))^2)/(mc-1))
+}
 
-# Quantiles by group
-disasters_year_dis <- disasters %>% 
-    filter(year >= 1960) %>% 
-    select(year, deaths_pc, income_group, dis_type)
+plot_trunc <- matrix(NA, nrow = length(tau_vec), ncol= 5 )
 
-disasters_year_dis_quant <- disasters_year_dis %>% 
-    group_by(year, income_group, dis_type) %>%
-    summarise(
-        q50 = quantile(deaths_pc, probs= 0.50, na.rm = TRUE),
-        mean = mean(deaths_pc),
-        max = max(deaths_pc),
-        q99 = quantile(deaths_pc, probs= 0.99, na.rm = TRUE)
-    ) %>%
-    gather(quantiles, value, q50:q99)
+plot_trunc[,1] <- mean_beta
+plot_trunc[,2] <- se_beta
+plot_trunc[,3] <- plot_trunc[,1] - plot_trunc[,2]*1.96 
+plot_trunc[,4] <- plot_trunc[,1] + plot_trunc[,2]*1.96
+plot_trunc[,5] <- tau_vec
 
-#Fix factor levels
-disasters_year_dis_quant$dis_type       <- factor(disasters_year_dis_quant$dis_type, 
-                                                  levels = c("Drought","Extreme temperature","Flood", "Landslide", "Storm", "Wildfire"),
-                                                  labels = c("Drought","Extreme Temp.","Flood", "Landslide", "Storm", "Wildfire"))
-disasters_year_dis_quant$quantiles      <- factor(disasters_year_dis_quant$quantiles, 
-                                                  levels = c("q50", "mean", "max", "q99"),
-                                                  labels = c("q50", "mean", "max", "q99"))
-disasters_year_dis_quant$income_group   <- factor(disasters_year_dis_quant$income_group, 
-                                                  levels = c("High income", "Upper middle income", "Lower middle income", "Low income"),
-                                                  labels = c("High", "Upper Middle", "Lower Middle", "Low"))
+
+plot_trunc <- as.data.frame(plot_trunc)
+#log_censored
+# evaluate mean and mc se of estimate coefficients
+
+mean_beta <- array(NA, length(tau_vec))
+se_beta   <- array(NA, length(tau_vec))
+
+j <- 1
+for (j in 1:length(tau_vec)) {
+    mean_beta[j] <- mean(coeff_matrix_log_censored[,j])
+    se_beta[j] <- sqrt(sum((coeff_matrix_log_censored[,j] - mean(coeff_matrix_log_censored[,j]))^2)/(mc-1))
+}
+
+plot_log_censored <- matrix(NA, nrow = length(tau_vec), ncol= 5 )
+
+plot_log_censored[,1] <- mean_beta
+plot_log_censored[,2] <- se_beta
+plot_log_censored[,3] <- plot_log_censored[,1] - plot_log_censored[,2]*1.96 
+plot_log_censored[,4] <- plot_log_censored[,1] + plot_log_censored[,2]*1.96
+plot_log_censored[,5] <- tau_vec
+
+
+plot_log_censored <- as.data.frame(plot_log_censored)
+
 
 #### Graphs ####
 
-# Graph Settings
-min_tau   <- 0.80 #minimum tau displayed
-line_size <- 1
+a1 <- cbind(plot_base, "base")
+colnames(a1)[colnames(a1)=="\"base\""] <- "sim"
+a2 <- cbind(plot_trunc, "trunc")
+colnames(a2)[colnames(a2)=="\"trunc\""] <- "sim"
+a3 <- cbind(plot_log_censored, "log_censored")
+colnames(a3)[colnames(a3)=="\"log_censored\""] <- "sim"
+adv_plot <- rbind(a1,a2,a3)
 
-theme_set(theme_light())
+adv_plot$sim <- factor(adv_plot$sim,
+                       levels = c("base", "trunc", "log_censored"),
+                       labels = c("True Model", "Piecewise Linear Truncation", "Logistic Truncation")
+)
 
-disasters_boxplot_deaths %>% ggplot(aes(x=year)) +
-    geom_boxplot(aes(ymin = q0, lower = q25, middle = q50, upper = q75, ymax = q90, group=year, fill=decade), stat = "identity", alpha=.8, size=.3) +
-    geom_point(aes(x=year, y=q90), size=.3) +
-    geom_smooth(aes(x=year, y=q90), method = "loess", se=F, size=.6, linetype=2, color="red") +
-    scale_x_continuous(breaks=c(1960,1970, 1980, 1990, 2000, 2010)) +
-    scale_fill_manual(breaks=c(1960,1970, 1980, 1990, 2000, 2010), values=deaths_palette) +
-    theme_light() +
-    xlab("Year") +
-    ylab("Deaths") +
-    ggtitle("A") +
-    guides(fill=guide_legend(title="Decade", nrow=1)) +
-    theme(
-        legend.position = "bottom",
-        legend.title = element_blank(),
-        panel.grid = element_blank(),
-        text=element_text(size=20),
-        legend.key.size = unit(1.4, "cm")
-    ) -> mainplot_box2
+adv_plot$sim = with(adv_plot, factor(sim, levels = rev(levels(sim))))
 
-odisasters_decade_deaths %>% 
-    filter(value>0) %>% 
-    ggplot(aes(x = value, group=decade), color="black") +
-    geom_density(aes(alpha=decade, fill=decade), color="black", alpha=.8, size=.4, linetype=3, show.legend = F) +
-    scale_alpha_manual(values = alpha_density) +
-    scale_fill_manual( values=deaths_palette) +
-    coord_cartesian(xlim = c(1000,50000), ylim=c(0,0.15))+
-    scale_x_log10() +
-    xlab("Log Deaths") +
-    ggtitle("Kernel Density Estimates by Decade,\nRight Tails") +
-    theme(
-        #legend.position = "bottom",
-        legend.title = element_blank(),
-        legend.justification=c(1,0), legend.position=c(.99,.37),
-        panel.grid = element_blank(),
-        axis.title.y = element_blank(),
-        text = element_text(size=17), 
-        plot.title = element_text(size=17)
-    )-> subplot_box2
+pal <- c("True Model" =                  "#F8766D", 
+         "Piecewise Linear Truncation" = "#00BA38",
+         "Logistic Truncation" =         "#619CFF")
 
-#Quantile reg graph with interaction term
-int_deaths_data%>% filter(tau>=min_tau) %>%  ggplot() + 
-    geom_line(aes(x=tau, y=coefficients, color=variable), size=line_size) +
-    geom_ribbon(data=lin_int_deaths_data[which(lin_int_deaths_data$tau>=min_tau),], 
-                aes(x= tau, ymin=`lower bd`, ymax=`upper bd`), alpha=.2) + #confidence interval for baseline
-    geom_line(data=lin_int_deaths_data[which(lin_int_deaths_data$tau>=min_tau),], #linear estimate baseline
-              aes(x=tau, y=lin_int_deaths, color=variable), size=0.4) +
-    geom_line(data=lin_int_deaths_data[which(lin_int_deaths_data$tau>=min_tau),], #lower bound linear baseline
-              aes(x=tau, y=lin_int_lb_deaths, color=variable), linetype=3) +
-    geom_line(data=lin_int_deaths_data[which(lin_int_deaths_data$tau>=min_tau),], #upper bound linear baseline
-              aes(x=tau, y=lin_int_ub_deaths, color=variable), linetype=3) +
-    scale_color_discrete(breaks = c("Quantile Regression", "OLS")) +
+pal2 <- c("True Model" =                  "#00BA38", 
+          "Logistic Truncation" =         "#F8766D")
+
+
+
+adv_plot %>% filter(V5>=0.8) %>% filter(sim!="Piecewise Linear Truncation") %>% 
+    ggplot() +
+    geom_line(aes(x=V5, y= V1, color=sim), size=0.6) +
+    geom_ribbon(aes(x=V5, ymin=V3, ymax=V4, fill=sim), alpha=0.3) +
+    xlab("Quantile") + 
+    ylab("Time Trend") +
+    coord_cartesian(xlim = c(0.808, 0.982)) +
     scale_x_continuous(breaks=c(0.8,0.85,0.9,0.95),
                        labels=c("80th", "85th", "90th", "95th")) +
-    coord_cartesian(xlim = c(0.8085, 0.9815)) +
-    xlab("Quantile") +
+    scale_fill_manual(values = pal2) +
+    scale_color_manual(values = pal2) +
+    theme_light() +
+    guides(fill = guide_legend(reverse = TRUE), color= guide_legend(reverse = TRUE)) +
+    theme_light(base_size = 7) +
+    theme(#legend.position = "bottom",
+          legend.position = c(0.2,0.2),
+          legend.title = element_blank(),
+          panel.grid = element_blank(),
+          text=element_text(size=7.5),
+          legend.key.size = unit(0.8,"line")
+    ) -> g_log_real
+
+
+adv_plot %>% filter(V5>=0.8) %>% filter(sim!="Piecewise Linear Truncation") %>% 
+    ggplot() +
+    geom_line(aes(x=V5, y= V1, color=sim), size=1) +
+    geom_ribbon(aes(x=V5, ymin=V3, ymax=V4, fill=sim), alpha=0.3) +
+    xlab("Quantile") + 
     ylab("Time Trend") +
-    ggtitle("B") +
-    theme(
+    coord_cartesian(xlim = c(0.808, 0.982)) +
+    scale_x_continuous(breaks=c(0.8,0.85,0.9,0.95),
+                       labels=c("80th", "85th", "90th", "95th")) +
+    scale_fill_manual(values = pal2) +
+    scale_color_manual(values = pal2) +
+    theme_light() +
+    guides(fill = guide_legend(reverse = TRUE), color= guide_legend(reverse = TRUE)) +
+    theme(#legend.position = "bottom",
+        legend.position = c(0.2,0.2),
         legend.title = element_blank(),
-        legend.position = "bottom",
-        panel.grid.minor = element_blank(),
-        text=element_text(size=20),
-        legend.key.size = unit(1.4, "cm")
-    ) -> quantile_reg_graph_int2
-
-mainplot_box2 + annotation_custom(ggplotGrob(subplot_box2), xmin = 1982, xmax=2014, ymin=700, ymax=2210) -> plot_deaths2
-plot_deaths2
-
-grid.arrange(plot_deaths2, quantile_reg_graph_int2, nrow=1) #save as 7.2X17.53 
-
-#Quantile by group 
-disasters_year_dis_quant %>% mutate(
-    dis_type=case_when(
-        dis_type=="Drought" ~ "Drought",
-        dis_type=="Extreme Temp." ~ "Extreme Temperature",
-        dis_type=="Flood" ~ "Flood",
-        dis_type=="Landslide" ~ "Landslide",
-        dis_type=="Storm" ~ "Storm",
-        dis_type=="Wildfire" ~ "Wildfire"
-    )
-) %>% 
-    filter(quantiles=="q99") %>% 
-    filter(value>0) %>% 
-    ggplot(aes(x=year, y=value)) +
-    facet_wrap( ~ dis_type, scales="free_y", nrow = 2) +
-    geom_point(aes(color=income_group), alpha=.5, size=.7) +
-    geom_smooth(method = lm, aes(color=income_group), linetype="dashed", size=.8, se=F) +
-    theme_bw() +
-    theme(
         panel.grid = element_blank(),
-        strip.background = element_blank(),
-        strip.text = element_text(size=9, face = "bold",  margin = margin(3, 0, 6, 0) ),
+        text=element_text(size=14)
+    ) -> g_log #save it as a6
+
+pal3 <- c("True Model" =                  "#619CFF", 
+          "Piecewise Linear Truncation" = "#F8766D")
+
+adv_plot %>% filter(V5>=0.8) %>% filter(sim!="Logistic Truncation") %>% 
+    ggplot() +
+    geom_line(aes(x=V5, y= V1, color=sim), size=0.6) +
+    geom_ribbon(aes(x=V5, ymin=V3, ymax=V4, fill=sim), alpha=0.3) +
+    xlab("Quantile") + 
+    ylab("Time Trend") +
+    coord_cartesian(xlim = c(0.808, 0.982)) +
+    scale_x_continuous(breaks=c(0.8,0.85,0.9,0.95),
+                       labels=c("80th", "85th", "90th", "95th")) +
+    scale_fill_manual(values = pal3) +
+    scale_color_manual(values = pal3) +
+    guides(fill = guide_legend(reverse = TRUE), color= guide_legend(reverse = TRUE)) +
+    theme_light(base_size = 7) +
+    theme(#legend.position = "bottom",
+          legend.position = c(0.25,0.2),
+          legend.title = element_blank(),
+          panel.grid = element_blank(),
+          text=element_text(size=7.5),
+          legend.key.size = unit(0.8,"line")
+    ) -> g_piece_real #save it as a6
+
+adv_plot %>% filter(V5>=0.8) %>% filter(sim!="Logistic Truncation") %>% 
+    ggplot() +
+    geom_line(aes(x=V5, y= V1, color=sim), size=1) +
+    geom_ribbon(aes(x=V5, ymin=V3, ymax=V4, fill=sim), alpha=0.3) +
+    xlab("Quantile") + 
+    ylab("Time Trend") +
+    coord_cartesian(xlim = c(0.808, 0.982)) +
+    scale_x_continuous(breaks=c(0.8,0.85,0.9,0.95),
+                       labels=c("80th", "85th", "90th", "95th")) +
+    scale_fill_manual(values = pal3) +
+    scale_color_manual(values = pal3) +
+    guides(fill = guide_legend(reverse = TRUE), color= guide_legend(reverse = TRUE)) +
+    theme_light() +
+    theme(#legend.position = "bottom",
+        legend.position = c(0.25,0.2),
         legend.title = element_blank(),
-        legend.text = element_text(size = 12),
-        legend.position = "bottom"
-    ) +
-    guides(colour = guide_legend(override.aes = list(size = 5, shape = "3"))) +
-    ylab("Deaths per Million Inhabitants (Yearly 99th Quantile)") +
-    xlab("Year") +
-    scale_color_manual(values=pal_income) +
-    scale_x_continuous(breaks=c(seq(1960,2010,20),2015)) + 
-    scale_y_log10(labels=trans_format('log10',math_format(10^.x, format=force)))-> deaths_groups_99
+        panel.grid = element_blank(),
+        text=element_text(size=14)
+    ) -> g_piece #save it as a6
 
 
 
-
-
+ggsave("/Users/matteo/Desktop/devil_graphs/bias.pdf", g_log, width=5.83, height=4.13, dpi=500, units="in")
+ggsave("/Users/matteo/Desktop/devil_graphs/bias_real.pdf", g_log_real, width=8.7, height=6.16, dpi=500, units="cm")
+ggsave("/Users/matteo/Desktop/devil_graphs/piece_bias.pdf", g_piece, width=5.83, height=4.13, dpi=500, units="in")
+ggsave("/Users/matteo/Desktop/devil_graphs/piece_bias_real.pdf", g_piece_real, width=8.7, height=6.16, dpi=500, units="cm")

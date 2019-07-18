@@ -176,7 +176,7 @@ colnames(arrows2) <- c("x","xend","y","yend","arr")
 
 arrow_time <- data.frame(x1 = start_mean -0.2, x2 = end_mean +0.2, y1 = -36, y2 = -36)
 
-mrg_title <- -6#-1.2
+mrg_title <- -7#-1.2
 
 ggplot() +
     geom_line(data=g_trans,aes(x=x_trans, y=y_trans)) +
@@ -370,17 +370,17 @@ lay3 <- rbind(c(1,1),
               c(2,2))
 
 #order: rop, right, bottom, left. Default values all at 5.5
-cut_mechanics      <- mechanics      + theme(plot.margin = margin(t = 5.5, r = -8.5, b = -5, l = -13.5, unit = "pt"))
-cut_mechanics_rev  <- mechanics_rev  + theme(plot.margin = margin(t = 5.5, r = -8.5, b = -5, l = -13.5, unit = "pt"))
-cut_quantile_graph <- quantile_graph + theme(plot.margin = margin(t = -5, r = 5.5, b = 5.5, l = 5.5, unit = "pt"))
+cut_mechanics      <- mechanics      + theme(plot.margin = margin(t = 5.5, r = -8.5, b = -7, l = -13.5, unit = "pt"))
+cut_mechanics_rev  <- mechanics_rev  + theme(plot.margin = margin(t = 5.5, r = -8.5, b = -7, l = -13.5, unit = "pt"))
+cut_quantile_graph <- quantile_graph + theme(plot.margin = margin(t = -7, r = 5.5, b = 5.5, l = 5.5, unit = "pt"))
 
 final     <- grid.arrange(cut_mechanics, cut_quantile_graph, layout_matrix = lay3, padding=400) #SAVE AS 7,8 x 5,51
 #save with required proportions
-ggsave("/Users/matteo/Desktop/gev_damage.pdf", final, width=8.7, height=12.32, dpi=500, units="cm", scale = 1.8)
+ggsave("/Users/matteo/Desktop/devil_graphs/gev_damage.pdf", final, width=8.7, height=12.32, dpi=500, units="cm", scale=1.8)
 
 final_rev <- grid.arrange(cut_mechanics_rev, cut_quantile_graph, layout_matrix = lay3) #SAVE AS 7,8 x 5,51
 #save with required proportions
-ggsave("/Users/matteo/Desktop/gev_damage_rev.pdf", final_rev, width=8.7, height=12.32, dpi=500, units="cm", scale = 1.8)
+ggsave("/Users/matteo/Desktop/devil_graphs/gev_damage_rev.pdf", final_rev, width=8.7, height=12.32, dpi=500, units="cm")
 
 
 

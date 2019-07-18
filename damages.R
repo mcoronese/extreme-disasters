@@ -438,12 +438,23 @@ climatic_ribbon <- climatic_data %>%
     filter(tau>=min_tau) %>% 
     filter(type==1)
 
+
+climatic_glued <- climatic_data %>% 
+    filter(tau>=min_tau) %>% 
+    mutate(`lower bd`= case_when(
+        type==0 ~ coefficients,
+        type==1 ~ `lower bd`
+    ),
+    `upper bd`= case_when(
+        type==0 ~ coefficients,
+        type==1 ~ `upper bd`
+    )
+    )
+
 disasters_boxplot_damages %>% ggplot(aes(x=year)) +
-    #geom_line(aes(color=quantiles), size=.7) +
     geom_boxplot(aes(ymin = q0, lower = q50, middle = q75, upper = q90, ymax = q99, group=year, fill=decade), stat = "identity", alpha=.8, size=.3) +
     geom_point(aes(x=year, y=q99), size=.3) +
     geom_smooth(aes(x=year, y=q99), method = "loess", se=F, size=.6, linetype=2, color="red") +
-    #geom_smooth(aes(x=year, y=q50), method = "loess", se=F) +
     scale_x_continuous(breaks=c(1960,1970, 1980, 1990, 2000, 2010)) +
     scale_fill_manual(breaks=c(1960,1970, 1980, 1990, 2000, 2010), values=diverging_palette) +
     theme_light() +
@@ -453,6 +464,7 @@ disasters_boxplot_damages %>% ggplot(aes(x=year)) +
     guides(fill=guide_legend(title="Decade", nrow=1)) +
     theme(
         legend.position = "bottom",
+        legend.title = element_blank(),
         panel.grid = element_blank(),
         text=element_text(size=20),
         legend.key.size = unit(1.4, "cm")
@@ -469,12 +481,11 @@ odisasters_decade_damages %>%
     xlab("Log Economic Damages (Billions US$)") +
     ggtitle("Kernel Density Estimates by Decade, Right Tails") +
     theme(
-        #legend.position = "bottom",
         legend.title = element_blank(),
         legend.justification=c(1,0), legend.position=c(.99,.37),
         panel.grid = element_blank(),
         axis.title.y = element_blank(),
-        text = element_text(size=17), #resize text so that it gets smaller in the final picture
+        text = element_text(size=17), 
         plot.title = element_text(size=17)
     )-> subplot_box_damages
 
@@ -506,12 +517,11 @@ base_data%>% filter(tau>=min_tau) %>%  ggplot() +
         legend.position = "bottom",
         panel.grid.minor = element_blank(),
         strip.text.x = element_blank(),
-        text=element_text(size=20), #formerly 21.5
+        text=element_text(size=20), 
         legend.key.size = unit(1.4, "cm")
     ) ->global_quantile
 
 damages_graph <- grid.arrange(plot_damages, global_quantile, nrow=1) #save it as a 3/2 half A4, that is 6.2 x 17.53. Actually, 7.2X17.53 makes inset looks nicer
-
 
 
 climatic_data %>% filter(tau>=min_tau) %>% ggplot() + 
@@ -530,18 +540,98 @@ climatic_data %>% filter(tau>=min_tau) %>% ggplot() +
     theme_light()+
     theme(
         legend.title = element_blank(),
-        legend.position = "bottom",
+        #legend.position = "bottom",
+        legend.position = c(0.15,0.78),
+        legend.background = element_rect(fill="transparent"),
+        legend.key = element_rect(fill="transparent"),
         panel.grid.minor = element_blank(),
         strip.text.x = element_blank(),
         text=element_text(size=14)
-    )  -> climatic
+    ) -> climatic
 
-climatic       #save as a6
+climatic_data %>% filter(tau>=min_tau) %>% ggplot() + 
+    geom_line(aes(x=tau, y=coefficients, color=variable, linetype =type), size=line_size*0.6) +
+    geom_ribbon(data= climatic_ribbon, aes(x=tau, ymin=`lower bd`, ymax= `upper bd`, fill=variable), show.legend = F, alpha=.3) +
+    facet_wrap(~model, scales = "free_y")+
+    scale_color_manual(values = pal_koppen) +
+    scale_fill_manual(values = pal_koppen) +
+    scale_y_continuous(breaks = c(0,20,40,60,80), limits = c(-8.5,84)) +
+    scale_x_continuous(breaks=c(0.8,0.85,0.9,0.95),
+                       labels=c("80th", "85th", "90th", "95th")) +
+    coord_cartesian(xlim = c(0.8085, 0.9815)) +
+    xlab("Quantile") +
+    ylab("Time Trend (Millions US$ per year)") +
+    guides(linetype=FALSE) +
+    theme_light(base_size = 7)+
+    theme(
+        legend.title = element_blank(),
+        #legend.position = "bottom",
+        legend.position = c(0.15,0.78),
+        legend.background = element_rect(fill="transparent"),
+        legend.key = element_rect(fill="transparent"),
+        panel.grid.minor = element_blank(),
+        strip.text.x = element_blank(),
+        text=element_text(size=7.5),
+        legend.key.size = unit(0.8,"line")
+    ) -> climatic_real
+
+climatic_glued %>% filter(tau>=min_tau) %>% ggplot() + 
+    geom_line(aes(x=tau, y=coefficients, color=variable, linetype =type), size=line_size) +
+    geom_ribbon(aes(x=tau, ymin=`lower bd`, ymax= `upper bd`, fill=variable), alpha=.3) +
+    facet_wrap(~model, scales = "free_y")+
+    scale_color_manual(values = pal_koppen) +
+    scale_fill_manual(values = pal_koppen) +
+    scale_y_continuous(breaks = c(0,20,40,60,80), limits = c(-8.5,84)) +
+    scale_x_continuous(breaks=c(0.8,0.85,0.9,0.95),
+                       labels=c("80th", "85th", "90th", "95th")) +
+    coord_cartesian(xlim = c(0.8085, 0.9815)) +
+    xlab("Quantile") +
+    ylab("Time Trend (Millions US$ per year)") +
+    guides(linetype=FALSE) +
+    theme_light()+
+    theme(
+        legend.title = element_blank(),
+        #legend.position = "bottom",
+        legend.position = c(0.15,0.78),
+        legend.background = element_rect(fill="transparent"),
+        legend.key = element_rect(fill="transparent"),
+        panel.grid.minor = element_blank(),
+        strip.text.x = element_blank(),
+        text=element_text(size=14)
+    )  -> climatic2
+
+climatic_glued %>% filter(tau>=min_tau) %>% ggplot() + 
+    geom_line(aes(x=tau, y=coefficients, color=variable, linetype =type), size=line_size*0.6) +
+    geom_ribbon(aes(x=tau, ymin=`lower bd`, ymax= `upper bd`, fill=variable), alpha=.3) +
+    facet_wrap(~model, scales = "free_y")+
+    scale_color_manual(values = pal_koppen) +
+    scale_fill_manual(values = pal_koppen) +
+    scale_y_continuous(breaks = c(0,20,40,60,80), limits = c(-8.5,84)) +
+    scale_x_continuous(breaks=c(0.8,0.85,0.9,0.95),
+                       labels=c("80th", "85th", "90th", "95th")) +
+    coord_cartesian(xlim = c(0.8085, 0.9815)) +
+    xlab("Quantile") +
+    ylab("Time Trend (Millions US$ per year)") +
+    guides(linetype=FALSE) +
+    theme_light(base_size = 7)+
+    theme(
+        legend.title = element_blank(),
+        #legend.position = "bottom",
+        legend.position = c(0.15,0.78),
+        legend.background = element_rect(fill="transparent"),
+        legend.key = element_rect(fill="transparent"),
+        panel.grid.minor = element_blank(),
+        strip.text.x = element_blank(),
+        text=element_text(size=7.5),
+        legend.key.size = unit(0.8,"line")
+    )  -> climatic2_real
 
 
-ggsave("/Users/matteo/Desktop/damages_graph.pdf", damages_graph, width=17.8, height=7.3, dpi=500, units="cm", scale = 2.6)
-
-ggsave("/Users/matteo/Desktop/climatic.pdf", climatic, width=8.7, height=12.32, dpi=500, units="cm", scale = 1.8)
-
-
+ggsave("/Users/matteo/Desktop/devil_graphs/damages_graph.pdf", damages_graph, width=17.53, height=7.2, dpi=500, units="in")
+#ggsave("/Users/matteo/Desktop/damages_graph.pdf", damages_graph, width=17.8, height=7.3, dpi=500, units="cm", scale = 2.6)
+ggsave("/Users/matteo/Desktop/devil_graphs/climatic.pdf", climatic, width=5.83, height=4.13, dpi=500, units="in")
+ggsave("/Users/matteo/Desktop/devil_graphs/climatic_real.pdf", climatic_real, width=8.7, height=6.16, dpi = 500, units="cm")
+#ggsave("/Users/matteo/Desktop/climatic.pdf", climatic, width=8.7, height=12.32, dpi=500, units="cm", scale = 1.8)
+ggsave("/Users/matteo/Desktop/devil_graphs/climatic2.pdf", climatic2, width=5.83, height=4.13, dpi=500, units="in")
+ggsave("/Users/matteo/Desktop/devil_graphs/climatic2_real.pdf", climatic2_real, width=8.7, height=6.16, dpi=500, units="cm")
 
