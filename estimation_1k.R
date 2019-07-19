@@ -244,7 +244,7 @@ disasters <- disasters %>%
 
 #### Settings ####  
 
-tau_flag <- 1 #if 1, use selected taus for tables (less computational intensive), otherwise from 0.5 to 0.99 with skips of 0.01
+tau_flag <- 8 #if 1, use selected taus for tables (less computational intensive), otherwise from 0.5 to 0.99 with skips of 0.01
 
 #Specify vector of quantiles to use for quantile regressions
 if(tau_flag==1){

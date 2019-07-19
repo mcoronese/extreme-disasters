@@ -106,7 +106,5 @@ for(j in 1:length(regression_list)){
 }
 
 write.csv2(total_table,"tables.csv")  
-
 write.table(total_table, "tables.csv", sep='\t')
 
-summary(intgdp_60_deaths_lin)
