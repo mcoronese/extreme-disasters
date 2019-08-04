@@ -1,5 +1,5 @@
 # The devil is in the tails: Evidence of mounting economic impacts of natural disasters
-Repository for "The devil is in the tails: Evidence of mounting economic impacts of natural disasters"
+Repository for "The devil is in the tails: Evidence of mounting economic impacts of natural disasters".
 
 This repo contains codes replication codes for pictures and tables contained in the paper. Original data cannot be made available here, as they are protected by an agreement of non-third-party disclosure, but can be requested at [Emergency Events Database](http://www.emdat.be). 
 
