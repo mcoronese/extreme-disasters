@@ -1,7 +1,7 @@
 # The devil is in the tails: Evidence of mounting economic impacts of natural disasters
 Repository for "The devil is in the tails: Evidence of mounting economic impacts of natural disasters"
 
-This repo contains codes replication codes for pictures and tables contained in the paper. Original data cannot be made available here, being protected by a license agreement, but can be requested at [Emergency Events Database](http://www.emdat.be). 
+This repo contains codes replication codes for pictures and tables contained in the paper. Original data cannot be made available here, as they are protected by an agreement of non-third-party disclosure, but can be requested at [Emergency Events Database](http://www.emdat.be). 
 
 * The code `gev_damages.R` replicates Figure 1. 
 * The code `damages.R` replicates Figure 2A, 2B and 3. 
