@@ -1,5 +1,5 @@
-# The devil is in the tails: Evidence of mounting economic impacts of natural disasters
-Repository for "The devil is in the tails: Evidence of mounting economic impacts of natural disasters".
+# Evidence for sharp increase in the economic damages of extreme natural disasters
+Code and supplementary documentation for Coronese et al (PNAS, 2019), doi: xxxx.
 
 This repo contains codes replication codes for pictures and tables contained in the paper. Original data cannot be made available here, as they are protected by an agreement of non-third-party disclosure, but can be requested at [Emergency Events Database](http://www.emdat.be). 
 
@@ -11,4 +11,8 @@ This repo contains codes replication codes for pictures and tables contained in 
 * The code `tables.R` generates tables containing OLS and selected quantiles present in the main text and in the Supplementary Material.
 * The code `koppen_boot.R` contains bootrstrap analysis for Figure 3 and relative tables (analysis by climatic zones)
 
+Copyright 2019 Matteo Coronese
 
+These files are free software: you can redistribute them and/or modify them under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+A copy of the GNU General Public License is available at http://www.gnu.org/licenses/.
