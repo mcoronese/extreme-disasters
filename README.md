@@ -9,7 +9,7 @@ This repo contains codes replication codes for pictures and tables contained in 
 * The code `bias.R` replicates Figure 5. 
 * The code `estimation.R` replicates all the regression analysis mentioned in the paper. 
 * The code `tables.R` generates tables containing OLS and selected quantiles present in the main text and in the Supplementary Material.
-* The code `koppen_boot.R` contains bootrstrap analysis for Figure 3 and relative tables (analysis by climatic zones)
+* The code `koppen_boot.R` contains bootrstrap analysis for Figure 3 and relative tables (analysis by climatic zones).
 
 
 
