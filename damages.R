@@ -18,9 +18,9 @@ library("grid")       # Inset graphs
 library("gridExtra")
 
 #load data global
-load("simul/final_rescaled_complete.RData")
+load("simul/estimation.RData")
 #load re-bootstrapped results analysis by climatic zones
-load("simul/plot_koppen_boot_1k.Rda")
+load("simul/plot_koppen_boot.rda")
 
 #### Preliminaries ####
 theme_set(theme_minimal()) # set graphs theme
@@ -628,10 +628,7 @@ climatic_glued %>% filter(tau>=min_tau) %>% ggplot() +
 
 
 ggsave("/Users/matteo/Desktop/devil_graphs/damages_graph.pdf", damages_graph, width=17.53, height=7.2, dpi=500, units="in")
-#ggsave("/Users/matteo/Desktop/damages_graph.pdf", damages_graph, width=17.8, height=7.3, dpi=500, units="cm", scale = 2.6)
 ggsave("/Users/matteo/Desktop/devil_graphs/climatic.pdf", climatic, width=5.83, height=4.13, dpi=500, units="in")
 ggsave("/Users/matteo/Desktop/devil_graphs/climatic_real.pdf", climatic_real, width=8.7, height=6.16, dpi = 500, units="cm")
-#ggsave("/Users/matteo/Desktop/climatic.pdf", climatic, width=8.7, height=12.32, dpi=500, units="cm", scale = 1.8)
 ggsave("/Users/matteo/Desktop/devil_graphs/climatic2.pdf", climatic2, width=5.83, height=4.13, dpi=500, units="in")
 ggsave("/Users/matteo/Desktop/devil_graphs/climatic2_real.pdf", climatic2_real, width=8.7, height=6.16, dpi=500, units="cm")
-

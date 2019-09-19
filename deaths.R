@@ -19,12 +19,11 @@ library(gridExtra)
 
 
 #load data
-load("simul/deaths_int.RData")
-load("simul/final_rescaled_complete.RData")
+load("simul/estimation.RData")
 #load re-bootstrapped results analysis by climatic zones
-load("simul/plot_distype_boot_1k.Rda")
-load( "simul/plot_income_boot_1k.Rda")
-load( "simul/plot_koppen_boot_1k.Rda")
+#load("simul/plot_distype_boot_1k.Rda")
+#load( "simul/plot_income_boot_1k.Rda")
+#load( "simul/plot_koppen_boot_1k.Rda")
 
 theme_set(theme_minimal())
 
@@ -402,8 +401,7 @@ lin_deaths_data$variable    <- factor(lin_deaths_data$variable,
                                       labels = "OLS")
 
 #Quantile reg with interaction graph
-tau_vec         <- seq(0.5,0.99, by=0.01)
-plot_int_60_deaths["index",,1:50] %>% t() %>% as.data.frame() -> int_deaths_data
+plot_int_60_deaths["index",,1:31] %>% t() %>% as.data.frame() -> int_deaths_data
 variable        <- rep("trend", length(tau_vec))
 tau             <- tau_vec
 model           <- rep("int_deaths", length(tau))
@@ -570,8 +568,8 @@ disasters_year_dis_quant %>% mutate(
     ) -> deaths_groups_99
 
 
-ggsave("/Users/matteo/Desktop/devil_graphs/deaths_graph.pdf", deaths_graph, width=17.53, height=7.2, dpi=500, units="in")
-#ggsave("/Users/matteo/Desktop/damages_graph.pdf", damages_graph, width=17.8, height=7.3, dpi=500, units="cm", scale = 2.6)
+#ggsave("/Users/matteo/Desktop/devil_graphs/deaths_graph.pdf", deaths_graph, width=17.53, height=7.2, dpi=500, units="in")
+ggsave("/Users/matteo/Desktop/devil_graphs/deaths_graph.pdf", deaths_graph, width=17.63, height=7.2, dpi=500, units="in")
 ggsave("/Users/matteo/Desktop/devil_graphs/deaths_groups_99.pdf", deaths_groups_99, width=5.83, height=4.13, dpi=500, units="in")
 
 

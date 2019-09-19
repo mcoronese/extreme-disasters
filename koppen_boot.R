@@ -630,8 +630,94 @@ fit_quality <- round(c(r1s["koppen",], summary_koppen_lin$adj.r.squared),3)
 final_table <- rbind(final_table, fit_quality)
 
 
-#plot_koppen_boot["t_temperate",,] #dall'ottantwsimo in poi significatico al 95%
-#plot_koppen_boot["index",,] #dal 70 in poi, solo non significativto da 89 a 95, ma significativo al 10%.
-#plot_koppen_boot["t_cold",,] #mai dal 70 in poi, solo dal 90 al 95. 
-#plot_koppen_boot["t_arid",,] #dal 70 al 75, dal8 7 all'89. 
-#
+write.csv2(final_table,"koppen_table.csv")  
+
+
+
+
+
+
+##########################################
+
+
+#-----------------------------------------------------------------------------
+# Calculate zero-inflated regression
+#-----------------------------------------------------------------------------
+
+m1 <- zeroinfl(count ~ child + camper | persons, data = zinb,
+               dist = "negbin", EM = TRUE)
+
+#-----------------------------------------------------------------------------
+# Store the original regression coefficients
+#-----------------------------------------------------------------------------
+
+original.estimates <- as.vector(t(do.call(rbind, coef(summary(m1)))[, 1:2]))
+
+#-----------------------------------------------------------------------------
+# Set the number of replications
+#-----------------------------------------------------------------------------
+
+n.sim <- 2000
+
+#-----------------------------------------------------------------------------
+# Set up a matrix to store the results
+#-----------------------------------------------------------------------------
+
+store.matrix <- matrix(NA, nrow=n.sim, ncol=12)
+
+#-----------------------------------------------------------------------------
+# The loop
+#-----------------------------------------------------------------------------
+
+set.seed(123)
+
+for(i in 1:n.sim) {
+    
+    #-----------------------------------------------------------------------------
+    # Draw the observations WITH replacement
+    #-----------------------------------------------------------------------------
+    
+    data.new <- zinb[sample(1:dim(zinb)[1], dim(zinb)[1], replace=TRUE),]
+    
+    #-----------------------------------------------------------------------------
+    # Calculate the model with this "new" data
+    #-----------------------------------------------------------------------------
+    
+    m <- zeroinfl(count ~ child + camper | persons,
+                  data = data.new, dist = "negbin",
+                  start = list(count = c(1.3711, -1.5152, 0.879),
+                               zero = c(1.6028, -1.6663)))
+    
+    #-----------------------------------------------------------------------------
+    # Store the results
+    #-----------------------------------------------------------------------------
+    
+    store.matrix[i, ] <- as.vector(t(do.call(rbind, coef(summary(m)))[, 1:2]))
+    
+}
+
+
+#-----------------------------------------------------------------------------
+# Save the means, medians and SDs of the bootstrapped statistics
+#-----------------------------------------------------------------------------
+
+boot.means <- colMeans(store.matrix, na.rm=T)
+
+boot.medians <- apply(store.matrix,2,median, na.rm=T)
+
+boot.sds <- apply(store.matrix,2,sd, na.rm=T)
+
+#-----------------------------------------------------------------------------
+# The bootstrap bias is the difference between the mean bootstrap estimates
+# and the original estimates
+#-----------------------------------------------------------------------------
+
+boot.bias <- colMeans(store.matrix, na.rm=T) - original.estimates
+
+#-----------------------------------------------------------------------------
+# Basic bootstrap CIs based on the empirical quantiles
+#-----------------------------------------------------------------------------
+
+conf.mat <- matrix(apply(store.matrix, 2 ,quantile, c(0.025, 0.975), na.rm=T),
+                   ncol=2, byrow=TRUE)
+colnames(conf.mat) <- c("95%-CI Lower", "95%-CI Upper")

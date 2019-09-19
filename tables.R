@@ -1,7 +1,6 @@
 #load("simul/new/final_estimation_1k.RData") #to access all quantiles
 #load("simul/new/final_estimation_1k_tidy.RData")
-library(xlsx)
-load("simul/new/estimation_tidy_correct.RData")
+load("simul/estimation_tidy.RData")
 
 
 #write funtion for getting a vector of p values
@@ -77,7 +76,7 @@ for(j in 1:length(regression_list)){
     for(i in 1:length(quantile_reg)){
         quantile_reg[[i]]$coefficients[,"Pr(>|t|)"] -> local_p_values
         values <- paste0(round(quantile_reg[[i]]$coefficients[,"Value"],3),p_stars(local_p_values))
-        std_error <- round(quantile_reg[[i]]$coefficients[,"Std. Error"],3)
+        std_error <- paste0( "(",round(quantile_reg[[i]]$coefficients[,"Std. Error"],3),")")
         line <- c(t(cbind(values,std_error)))
         local_table[1:length(line),i] <- line
         #add r1 line
@@ -88,7 +87,7 @@ for(j in 1:length(regression_list)){
     linear_reg <- summary(get(paste0(regression_list[j],"_lin")))
     linear_reg$coefficients[,"Pr(>|t|)"] -> lin_p_values
     lin_values <- paste0(round(linear_reg$coefficients[,"Estimate"],3),p_stars(lin_p_values))
-    lin_std_error <- round(linear_reg$coefficients[,"Std. Error"],3)
+    lin_std_error <- paste0( "(",round(linear_reg$coefficients[,"Std. Error"],3),")")
     lin_line <- c(t(cbind(lin_values,lin_std_error)))
     local_table[1:length(line),"OLS"] <- lin_line
     #add r2 line
@@ -106,5 +105,4 @@ for(j in 1:length(regression_list)){
 }
 
 write.csv2(total_table,"tables.csv")  
-write.table(total_table, "tables.csv", sep='\t')
 
