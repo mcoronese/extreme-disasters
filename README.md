@@ -1,5 +1,5 @@
 # Evidence for sharp increase in the economic damages of extreme natural disasters
-Code and supplementary documentation for Coronese et al (PNAS, 2019), doi: xxxx.
+Code and supplementary documentation for Coronese et al (PNAS, 2019), doi: https://doi.org/10.1073/pnas.1907826116.
 
 This repo contains codes replication codes for pictures and tables contained in the paper. Original data cannot be made available here, as they are protected by an agreement of non-third-party disclosure, but can be requested at [Emergency Events Database](http://www.emdat.be). 
 
